@@ -1,4 +1,3 @@
-from Game2048Env import Game2048Env
 from train_tdl import TDLearning, board, pattern
 import random
 import numpy as np
