@@ -120,14 +120,14 @@ class board:
                 self.right = (R[0] << 0) | (R[1] << 4) | (R[2] << 8) | (R[3] << 12) # right operation
                 self.score = score # merge reward
 
-            def move_left(self, raw : int, sc : int, i : int) -> tuple[int, int]:
+            def move_left(self, raw : int, sc : int, i : int):
                 return raw | (self.left << (i << 4)), sc + self.score
 
-            def move_right(self, raw : int, sc : int, i : int) -> tuple[int, int]:
+            def move_right(self, raw : int, sc : int, i : int):
                 return raw | (self.right << (i << 4)), sc + self.score
 
             @staticmethod
-            def mvleft(row : int) -> tuple[list[int], int]:
+            def mvleft(row : int):
                 buf = [t for t in row if t]
                 res, score = [], 0
                 while buf:
