@@ -7,19 +7,19 @@ import abc
 import time
 
 
-def info(*argv) -> None:
+def info(*argv):
     """
     default info output
     """
     print(*argv, file=sys.stdout)
 
-def error(*argv) -> None:
+def error(*argv):
     """
     default error output
     """
     print(*argv, file=sys.stderr)
 
-def debug(*argv) -> None:
+def debug(*argv):
     """
     default debug output
     to enable debugging, uncomment the debug output lines below, i.e., debug(...)
@@ -47,58 +47,58 @@ class board:
     +------------------------+
     """
 
-    def __init__(self, raw : int = 0):
+    def __init__(self, raw = 0):
         self.raw = int(raw)
 
-    def __int__(self) -> int:
+    def __int__(self):
         return self.raw
 
-    def fetch(self, i : int) -> int:
+    def fetch(self, i):
         """
         get a 16-bit row
         """
         return (self.raw >> (i << 4)) & 0xffff
 
-    def place(self, i : int, r : int) -> None:
+    def place(self, i, r):
         """
         set a 16-bit row
         """
         self.raw = (self.raw & ~(0xffff << (i << 4))) | ((r & 0xffff) << (i << 4))
 
-    def at(self, i : int) -> int:
+    def at(self, i):
         """
         get a 4-bit tile
         """
         return (self.raw >> (i << 2)) & 0x0f
 
-    def set(self, i : int, t : int) -> None:
+    def set(self, i, t):
         """
         set a 4-bit tile
         """
         self.raw = (self.raw & ~(0x0f << (i << 2))) | ((t & 0x0f) << (i << 2))
 
-    def __getitem__(self, i : int) -> int:
+    def __getitem__(self, i):
         return self.at(i)
 
-    def __setitem__(self, i : int, t : int) -> None:
+    def __setitem__(self, i, t):
         self.set(i, t)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other):
         return isinstance(other, board) and self.raw == other.raw
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other):
         return isinstance(other, board) and self.raw < other.raw
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other):
         return not self == other
 
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other):
         return isinstance(other, board) and other < self
 
-    def __le__(self, other) -> bool:
+    def __le__(self, other):
         return isinstance(other, board) and not other < self
 
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other):
         return isinstance(other, board) and not self < other
 
     class lookup:
@@ -109,7 +109,7 @@ class board:
         find = [None] * 65536
 
         class entry:
-            def __init__(self, row : int):
+            def __init__(self, row):
                 V = [ (row >> 0) & 0x0f, (row >> 4) & 0x0f, (row >> 8) & 0x0f, (row >> 12) & 0x0f ]
                 L, score = board.lookup.entry.mvleft(V)
                 V.reverse() # mirror
@@ -120,14 +120,14 @@ class board:
                 self.right = (R[0] << 0) | (R[1] << 4) | (R[2] << 8) | (R[3] << 12) # right operation
                 self.score = score # merge reward
 
-            def move_left(self, raw : int, sc : int, i : int):
+            def move_left(self, raw, sc, i):
                 return raw | (self.left << (i << 4)), sc + self.score
 
-            def move_right(self, raw : int, sc : int, i : int):
+            def move_right(self, raw, sc, i):
                 return raw | (self.right << (i << 4)), sc + self.score
 
             @staticmethod
-            def mvleft(row : int):
+            def mvleft(row):
                 buf = [t for t in row if t]
                 res, score = [], 0
                 while buf:
@@ -140,10 +140,10 @@ class board:
                 return res + [0] * (4 - len(res)), score
 
         @classmethod
-        def init(cls) -> None:
+        def init(cls):
             cls.find = [cls.entry(row) for row in range(65536)]
 
-    def init(self) -> None:
+    def init(self):
         """
         reset to initial state, i.e., witn only 2 random tiles on board
         """
@@ -151,7 +151,7 @@ class board:
         self.popup()
         self.popup()
 
-    def popup(self) -> None:
+    def popup(self):
         """
         add a new random tile on board, or do nothing if the board is full
         2-tile: 90%
@@ -161,7 +161,7 @@ class board:
         if space:
             self.set(random.choice(space), 1 if random.random() < 0.9 else 2)
 
-    def move(self, opcode : int) -> int:
+    def move(self, opcode):
         """
         apply an action to the board
         return the reward of the action, or -1 if the action is illegal
@@ -177,7 +177,7 @@ class board:
         else:
             return -1
 
-    def move_left(self) -> int:
+    def move_left(self):
         move = 0
         prev = self.raw
         score = 0
@@ -186,7 +186,7 @@ class board:
         self.raw = move
         return score if move != prev else -1
 
-    def move_right(self) -> int:
+    def move_right(self):
         move = 0
         prev = self.raw
         score = 0
@@ -195,19 +195,19 @@ class board:
         self.raw = move
         return score if move != prev else -1
 
-    def move_up(self) -> int:
+    def move_up(self):
         self.rotate_clockwise()
         score = self.move_right()
         self.rotate_counterclockwise()
         return score
 
-    def move_down(self) -> int:
+    def move_down(self):
         self.rotate_clockwise()
         score = self.move_left()
         self.rotate_counterclockwise()
         return score
 
-    def transpose(self) -> None:
+    def transpose(self):
         """
         swap rows and columns
         +------------------------+       +------------------------+
@@ -220,7 +220,7 @@ class board:
         self.raw = (self.raw & 0xf0f00f0ff0f00f0f) | ((self.raw & 0x0000f0f00000f0f0) << 12) | ((self.raw & 0x0f0f00000f0f0000) >> 12)
         self.raw = (self.raw & 0xff00ff0000ff00ff) | ((self.raw & 0x00000000ff00ff00) << 24) | ((self.raw & 0x00ff00ff00000000) >> 24)
 
-    def mirror(self) -> None:
+    def mirror(self):
         """
         reflect the board horizontally, i.e., exchange columns
         +------------------------+       +------------------------+
@@ -233,7 +233,7 @@ class board:
         self.raw = ((self.raw & 0x000f000f000f000f) << 12) | ((self.raw & 0x00f000f000f000f0) << 4) \
                  | ((self.raw & 0x0f000f000f000f00) >> 4) | ((self.raw & 0xf000f000f000f000) >> 12)
 
-    def flip(self) -> None:
+    def flip(self):
         """
         reflect the board vertically, i.e., exchange rows
         +------------------------+       +------------------------+
@@ -246,7 +246,7 @@ class board:
         self.raw = ((self.raw & 0x000000000000ffff) << 48) | ((self.raw & 0x00000000ffff0000) << 16) \
                  | ((self.raw & 0x0000ffff00000000) >> 16) | ((self.raw & 0xffff000000000000) >> 48)
 
-    def rotate(self, r : int = 1) -> None:
+    def rotate(self, r = 1):
         """
         rotate the board clockwise by given times
         """
@@ -260,19 +260,19 @@ class board:
         elif r == 3:
             self.rotate_counterclockwise()
 
-    def rotate_clockwise(self) -> None:
+    def rotate_clockwise(self):
         self.transpose()
         self.mirror()
 
-    def rotate_counterclockwise(self) -> None:
+    def rotate_counterclockwise(self):
         self.transpose()
         self.flip()
 
-    def reverse(self) -> None:
+    def reverse(self):
         self.mirror()
         self.flip()
 
-    def __str__(self) -> str:
+    def __str__(self):
         state = '+' + '-' * 24 + '+\n'
         for i in range(0, 16, 4):
             state += ('|' + ''.join('{0:6d}'.format((1 << self.at(j)) & -2) for j in range(i, i + 4)) + '|\n')
@@ -286,49 +286,49 @@ class feature(abc.ABC):
     feature and weight table for n-tuple networks
     """
 
-    def __init__(self, length : int):
+    def __init__(self, length):
         self.weight = feature.alloc(length)
 
-    def __getitem__(self, i : int) -> float:
+    def __getitem__(self, i):
         return self.weight[i]
 
-    def __setitem__(self, i : int, v : float) -> None:
+    def __setitem__(self, i, v):
         self.weight[i] = v
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.weight)
 
-    def size(self) -> int:
+    def size(self):
         return len(self.weight)
 
     @abc.abstractmethod
-    def estimate(self, b : board) -> float:
+    def estimate(self, b):
         """
         estimate the value of a given board
         """
         pass
 
     @abc.abstractmethod
-    def update(self, b : board, u : float) -> float:
+    def update(self, b, u):
         """
         update the value of a given board, and return its updated value
         """
         pass
 
     @abc.abstractmethod
-    def name(self) -> str:
+    def name(self):
         """
         get the name of this feature
         """
         pass
 
-    def dump(self, b : board, out : typing.Callable = info) -> None:
+    def dump(self, b, out = info):
         """
         dump the detail of weight table of a given board
         """
         out(f"{b}\nestimate = {self.estimate(b)}")
 
-    def write(self, output : typing.BinaryIO) -> None:
+    def write(self, output):
         name = self.name().encode('utf-8')
         output.write(struct.pack('I', len(name)))
         output.write(name)
@@ -336,7 +336,7 @@ class feature(abc.ABC):
         output.write(struct.pack('Q', size))
         output.write(struct.pack(f'{size}f', *self.weight))
 
-    def read(self, input : typing.BinaryIO) -> None:
+    def read(self, input):
         size = struct.unpack('I', input.read(4))[0]
         name = input.read(size).decode('utf-8')
         if name != self.name():
@@ -352,7 +352,7 @@ class feature(abc.ABC):
             exit(1)
 
     @staticmethod
-    def alloc(num : int):
+    def alloc(num):
         if not hasattr(feature.alloc, "total"):
             feature.alloc.total = 0
             feature.alloc.limit = (1 << 30) // 4 # 1G memory
@@ -389,7 +389,7 @@ class pattern(feature):
      pattern([ 0, 1, 2, 3, 4, 5 ], 4)
     """
 
-    def __init__(self, patt : list[int], iso : int = 8):
+    def __init__(self, patt, iso = 8):
         super().__init__(1 << (len(patt) * 4))
         if not patt:
             error("no pattern defined")
@@ -422,7 +422,7 @@ class pattern(feature):
             idx.rotate(i)
             self.isom[i] = [idx.at(t) for t in patt]
 
-    def estimate(self, b : board) -> float:
+    def estimate(self, b):
         """
         estimate the value of a given board
         """
@@ -432,7 +432,7 @@ class pattern(feature):
             value += self.weight[index]
         return value
 
-    def update(self, b : board, u : float) -> float:
+    def update(self, b, u):
         """
         update the value of a given board, and return its updated value
         """
@@ -444,13 +444,13 @@ class pattern(feature):
             value += self.weight[index]
         return value
 
-    def name(self) -> str:
+    def name(self):
         """
         get the name of this feature
         """
         return f"{len(self.isom[0])}-tuple pattern {self.nameof(self.isom[0])}"
 
-    def dump(self, b : board, out : typing.Callable = info) -> None:
+    def dump(self, b, out = info):
         """
         display the weight information of a given board
         """
@@ -459,13 +459,13 @@ class pattern(feature):
             tiles = [(index >> (4 * i)) & 0x0f for i in range(len(iso))]
             out(f"#{self.nameof(iso)}[{self.nameof(tiles)}] = {self[index]}")
 
-    def indexof(self, patt : list[int], b : board) -> int:
+    def indexof(self, patt, b):
         index = 0
         for i, pos in enumerate(patt):
             index |= b.at(pos) << (4 * i)
         return index
 
-    def nameof(self, patt : list[int]) -> str:
+    def nameof(self, patt):
         return "".join([f"{p:x}" for p in patt])
 
 
@@ -475,7 +475,7 @@ class move:
     store state, action, reward, afterstate, and value
     """
 
-    def __init__(self, board : board = None, opcode : int = -1):
+    def __init__(self, board = None, opcode = -1):
         self.before = None
         self.after = None
         self.opcode = opcode
@@ -484,57 +484,57 @@ class move:
         if board is not None:
             self.assign(board)
 
-    def state(self) -> board:
+    def state(self):
         return self.before
 
-    def afterstate(self) -> board:
+    def afterstate(self):
         return self.after
 
-    def value(self) -> float:
+    def value(self):
         return self.esti
 
-    def reward(self) -> int:
+    def reward(self):
         return self.score
 
-    def action(self) -> int:
+    def action(self):
         return self.opcode
 
-    def set_state(self, state : board) -> None:
+    def set_state(self, state):
         self.before = state
 
-    def set_afterstate(self, state : board) -> None:
+    def set_afterstate(self, state):
         self.after = state
 
-    def set_value(self, value : float) -> None:
+    def set_value(self, value):
         self.esti = value
 
-    def set_reward(self, reward : int) -> None:
+    def set_reward(self, reward):
         self.score = reward
 
-    def set_action(self, action : int) -> None:
+    def set_action(self, action):
         self.opcode = action
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other):
         return isinstance(other, move) and self.opcode == other.opcode and \
             self.before == other.before and self.after == other.after and \
             self.esti == other.esti and self.score == other.score
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other):
         return isinstance(other, move) and self.before == other.before and self.esti < other.esti
 
-    def __le__(self, other) -> bool:
+    def __le__(self, other):
         return self.__lt__(other) or self.__eq__(other)
 
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other):
         return isinstance(other, move) and other.__lt__(self)
 
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other):
         return self.__gt__(other) or self.__eq__(other)
 
-    def assign(self, b : board) -> bool:
+    def assign(self, b):
         """
         assign a state, then apply the action to generate its afterstate
         return True if the action is valid for the given state
@@ -546,7 +546,7 @@ class move:
         self.esti = self.score if self.score != -1 else -float('inf')
         return self.score != -1
 
-    def is_valid(self) -> bool:
+    def is_valid(self):
         """
         check the move is valid or not
 
@@ -561,11 +561,11 @@ class move:
             exit(-1)
         return self.after != self.before and self.opcode != -1 and self.score != -1
 
-    def name(self) -> str:
+    def name(self):
         opname = [ "up", "down", "left", "right" ]
         return opname[self.opcode] if self.opcode >= 0 and self.opcode < 4 else "none"
 
-    def __str__(self) -> str:
+    def __str__(self):
         move_str = f"moving {self.name()}, reward = {self.score}"
         if self.is_valid():
             move_str += f", value = {self.esti}\n{self.after}"
@@ -581,7 +581,7 @@ class TDLearning:
         self.maxtile = []
         self.avg_scores = []
 
-    def add_feature(self, feat : feature) -> None:
+    def add_feature(self, feat):
         """
         add a feature into tuple networks
         """
@@ -596,7 +596,7 @@ class TDLearning:
             size = f"{(usage >> 10)}KB"
         info(f"{sign} ({size})")
 
-    def estimate(self, b : board) -> float:
+    def estimate(self, b):
         """
         estimate the value of the given state
         by accumulating all corresponding feature weights
@@ -604,7 +604,7 @@ class TDLearning:
         # debug(f"estimate {b}")
         return sum(feat.estimate(b) for feat in self.feats)
 
-    def update(self, b : board, u : float) -> float:
+    def update(self, b, u):
         """
         update the value of the given state and return its new value
         """
@@ -612,7 +612,7 @@ class TDLearning:
         adjust = u / len(self.feats)
         return sum(feat.update(b, adjust) for feat in self.feats)
 
-    def select_best_move(self, b : board) -> move:
+    def select_best_move(self, b):
         """
         select the best move of a state b
 
@@ -633,7 +633,7 @@ class TDLearning:
             # debug("test", mv)
         return best
 
-    def learn_from_episode(self, path : list[move], alpha : float = 0.1) -> None:
+    def learn_from_episode(self, path, alpha = 0.1):
         """
         learn from the records in an episode
 
@@ -652,7 +652,7 @@ class TDLearning:
             target = mv.reward() + self.update(mv.afterstate(), alpha * error)
             # debug(f"update error = {error} for\n{mv.afterstate()}")
 
-    def make_statistic(self, n : int, b : board, score : int, unit : int = 1000) -> None:
+    def make_statistic(self, n, b, score, unit = 1000):
         """
         update the statistic, and show the statistic every 1000 episodes by default
 
@@ -703,7 +703,7 @@ class TDLearning:
 
             tdl.save("2048.bin")
 
-    def dump(self, b : board, out : typing.Callable = info) -> None:
+    def dump(self, b, out = info):
         """
         display the weight information of a given board
         """
@@ -711,7 +711,7 @@ class TDLearning:
         for feat in self.feats:
             feat.dump(b, out=out)
 
-    def load(self, path : str) -> None:
+    def load(self, path):
         """
         load the weight table from binary file
         the required features must be added, i.e., add_feature(...), before calling this function
@@ -727,7 +727,7 @@ class TDLearning:
         except FileNotFoundError:
             pass
 
-    def save(self, path : str) -> None:
+    def save(self, path):
         """
         save the weight table to binary file
         """
@@ -804,11 +804,9 @@ if __name__ == "__main__":
                 break
         # end_time = time.time()
         # print(f"Time taken for one episode: {end_time - start_time} seconds")
-        # debug("end episode")
+        # debug("end episode
 
-        # update by TD(0)
         tdl.learn_from_episode(path, alpha)
-        tdl.make_statistic(n, state, score, unit=1000)
-
-    # store the model into file
+        tdl.make_statistic(n, state, score)
+    
     tdl.save("2048.bin")
