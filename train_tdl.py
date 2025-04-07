@@ -352,7 +352,7 @@ class feature(abc.ABC):
             exit(1)
 
     @staticmethod
-    def alloc(num : int) -> list[float]:
+    def alloc(num : int):
         if not hasattr(feature.alloc, "total"):
             feature.alloc.total = 0
             feature.alloc.limit = (1 << 30) // 4 # 1G memory
