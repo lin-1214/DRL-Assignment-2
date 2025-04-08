@@ -360,7 +360,7 @@ class feature(abc.ABC):
             feature.alloc.total += num
             if feature.alloc.total > feature.alloc.limit:
                 raise MemoryError("memory limit exceeded")
-            return [float(0)] * num
+            return [float(320000/num)] * num
         except MemoryError as e:
             error("memory limit exceeded")
             exit(-1)
@@ -612,26 +612,73 @@ class TDLearning:
         adjust = u / len(self.feats)
         return sum(feat.update(b, adjust) for feat in self.feats)
 
+    # ... existing code ...
+
     def select_best_move(self, b):
         """
-        select the best move of a state b
+        select the best move of a state b using tile-downgrading when applicable
 
         return should be a move whose
-         state() is b
-         afterstate() is its best afterstate
-         action() is the best action
-         reward() is the reward of this action
-         value() is the estimated value of this move
+        state() is b
+        afterstate() is its best afterstate
+        action() is the best action
+        reward() is the reward of this action
+        value() is the estimated value of this move
         """
         best = move(b)
-        moves = [ move(b, opcode) for opcode in range(4) ]
+        
+        # Check if tile-downgrading should be applied
+        should_downgrade = False
+        largest_tile = 0
+        tile_counts = [0] * 16  # Count of each tile type (up to 2^31)
+        
+        # Find the largest tile and count all tiles
+        for i in range(16):
+            tile_value = b.at(i)
+            if tile_value > 0:
+                tile_counts[tile_value] += 1
+                largest_tile = max(largest_tile, tile_value)
+        
+        # Find the largest missing tile not exceeding the largest tile
+        largest_missing_tile = 0
+        for i in range(1, largest_tile):
+            if tile_counts[i] == 0:
+                largest_missing_tile = i
+                break
+        # Apply downgrading if there's a missing tile smaller than the largest tile
+        if largest_missing_tile <= largest_tile and largest_missing_tile > 7:
+            should_downgrade = True
+            downgrade_threshold = largest_missing_tile
+        
+        moves = [move(b, opcode) for opcode in range(4)]
         for mv in moves:
             if mv.is_valid():
-                mv.set_value(mv.reward() + self.estimate(mv.afterstate()))
+                afterstate = mv.afterstate()
+                
+                # Apply tile-downgrading if needed
+                if should_downgrade:
+                    # Create a downgraded copy of the afterstate
+                    downgraded = board(afterstate)
+                    
+                    # Downgrade tiles (halve values of tiles larger than the threshold)
+                    for i in range(16):
+                        tile_value = downgraded.at(i)
+                        # print(f"tile_value: {tile_value}")
+                        if tile_value > downgrade_threshold:
+                            downgraded.set(i, tile_value - 1)
+                    
+                    # Estimate value using the downgraded state
+                    estimated_value = mv.reward() + self.estimate(downgraded)
+                else:
+                    # Normal estimation
+                    estimated_value = mv.reward() + self.estimate(afterstate)
+                    
+                mv.set_value(estimated_value)
                 if mv.value() > best.value():
                     best = mv
-            # debug("test", mv)
+                
         return best
+
 
     def learn_from_episode(self, path, alpha = 0.1):
         """
@@ -761,11 +808,21 @@ if __name__ == "__main__":
         pattern([5, 6, 9, 10]),            # 4-tuple pattern 569a
         pattern([2, 6, 10, 14]),           # 4-tuple pattern 26ae
         pattern([3, 7, 11, 15]),           # 4-tuple pattern 37bf
+        pattern([1, 4, 5, 8, 9]),          # 5-tuple pattern 01245
+        pattern([2, 5, 6, 9, 10]),          # 5-tuple pattern 12356
+        pattern([3, 6, 7, 10, 11]),        # 5-tuple pattern 23467
         pattern([0, 1, 2, 4, 5]),          # 5-tuple pattern 01245
         pattern([1, 2, 3, 5, 6]),          # 5-tuple pattern 12356
         pattern([0, 1, 5, 6, 7]),          # 5-tuple pattern 01567
         pattern([0, 1, 2, 5, 9]),          # 5-tuple pattern 01259
-        pattern([0, 1, 2, 6, 10])          # 5-tuple pattern 0126a
+        pattern([0, 1, 2, 6, 10]),          # 5-tuple pattern 0126a
+        pattern([0, 1, 5, 9, 10]),
+        pattern([0, 4, 8, 9, 12]),
+        pattern([1, 5, 9, 10, 13]),
+        pattern([2, 6, 10, 11, 14]),
+        pattern([0, 1, 5, 9, 13]),
+        pattern([1, 2, 6, 10, 14]),
+        pattern([2, 3, 7, 11, 15]),
     ]
 
     for pattern in ntuple_patterns:
