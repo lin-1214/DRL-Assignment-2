@@ -165,14 +165,16 @@ def mcts_search(b, iterations=100, exploration_weight=1.0):
                     node = child
                     break
         
-        # Simulation phase: use N-tuple network for evaluation instead of random playout
-        sim_board = board(node.board_state)
-        
-        # Use the trained N-tuple network to evaluate the state
-        state_value = tdl.estimate(sim_board)
+        best_move = tdl.select_best_move(node.board_state)
+
+        if best_move.is_valid():
+            # The value already includes the reward
+            total_value = best_move.value()
+        else:
+            total_value = 0
         
         # Add immediate reward to the state value
-        total_value = node.reward + state_value
+        total_value += node.reward
         
         # Backpropagation phase: update values up the tree
         while node is not None:
