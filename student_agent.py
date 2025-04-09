@@ -55,33 +55,33 @@ def state_to_board(state):
                 b.set(i*4+j, 0)
     return b
 
-# def get_action(state, score):
-#     # return random.choice([0, 1, 2, 3]) # Choose a random action
-
-#     b = state_to_board(state)
-    
-#     # Use your N-Tuple approximator to select the best move
-#     best_move = tdl.select_best_move(b).action()
-
-#     action = best_move
-
-#     return action
-    
-#     # You can submit this random agent to evaluate the performance of a purely random strategy.
-
-# ... existing code ...
 def get_action(state, score):
     # return random.choice([0, 1, 2, 3]) # Choose a random action
 
     b = state_to_board(state)
     
-    # Use MCTS with N-tuple weights to select the best move
-    best_move = mcts_search(b, iterations=100)
-    
-    if best_move == -1:  # If MCTS fails, fall back to N-Tuple approximator
-        best_move = tdl.select_best_move(b).action()
+    # Use your N-Tuple approximator to select the best move
+    best_move = tdl.select_best_move(b).action()
 
-    return best_move
+    action = best_move
+
+    return action
+    
+#     # You can submit this random agent to evaluate the performance of a purely random strategy.
+
+# # ... existing code ...
+# def get_action(state, score):
+#     # return random.choice([0, 1, 2, 3]) # Choose a random action
+
+#     b = state_to_board(state)
+    
+#     # Use MCTS with N-tuple weights to select the best move
+#     best_move = mcts_search(b, iterations=100)
+    
+#     if best_move == -1:  # If MCTS fails, fall back to N-Tuple approximator
+#         best_move = tdl.select_best_move(b).action()
+
+#     return best_move
 
 def mcts_search(b, iterations=100, exploration_weight=1.0):
     """
@@ -169,12 +169,9 @@ def mcts_search(b, iterations=100, exploration_weight=1.0):
 
         if best_move.is_valid():
             # The value already includes the reward
-            total_value = best_move.value()
+            total_value = best_move.reward()
         else:
             total_value = 0
-        
-        # Add immediate reward to the state value
-        total_value += node.reward
         
         # Backpropagation phase: update values up the tree
         while node is not None:
