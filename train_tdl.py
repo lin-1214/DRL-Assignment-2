@@ -612,8 +612,6 @@ class TDLearning:
         adjust = u / len(self.feats)
         return sum(feat.update(b, adjust) for feat in self.feats)
 
-    # ... existing code ...
-
     def select_best_move(self, b):
         """
         select the best move of a state b using tile-downgrading when applicable
