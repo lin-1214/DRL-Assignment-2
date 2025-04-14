@@ -20,8 +20,6 @@ import numpy as np
 # Note: This MCTS implementation is almost identical to the previous one,
 # except for the rollout phase, which now incorporates the approximator.
 
-# ... existing code ...
-
 # Node for TD-MCTS using the TD-trained value approximator
 class TD_MCTS_Node:
     def __init__(self, state, score, parent=None, action=None, env=None, type="estimate"):
@@ -330,7 +328,7 @@ for pattern in ntuple_patterns:
 tdl.load("2048_stage1.bin")
 
 env = Game2048Env()
-td_mcts = TD_MCTS(env, tdl, iterations=10, exploration_constant=1.41, rollout_depth=100, gamma=0.99)
+td_mcts = TD_MCTS(env, tdl, iterations=30, exploration_constant=1.41, rollout_depth=100, gamma=0.99)
 
 
 def state_to_board(state):
@@ -361,7 +359,7 @@ def get_action(state, score):
     # Select the best action (based on highest visit count)
     best_act, _ = td_mcts.best_action_distribution(root)
 
-    # print("Current score: ", env.score)
+    print("Current score: ", env.score)
 
 
     return best_act
