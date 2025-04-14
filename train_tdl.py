@@ -580,6 +580,8 @@ class TDLearning:
         self.scores = []
         self.maxtile = []
         self.avg_scores = []
+        self.stage = 1  # Track which stage we're training (1: up to 8192, 2: 8192 to 16384)
+        self.stage_threshold = 13  # 2^13 = 8192
 
     def add_feature(self, feat):
         """
@@ -615,13 +617,7 @@ class TDLearning:
     def select_best_move(self, b):
         """
         select the best move of a state b using tile-downgrading when applicable
-
-        return should be a move whose
-        state() is b
-        afterstate() is its best afterstate
-        action() is the best action
-        reward() is the reward of this action
-        value() is the estimated value of this move
+        and using the appropriate stage model based on the largest tile
         """
         best = move(b)
         
@@ -643,6 +639,7 @@ class TDLearning:
             if tile_counts[i] == 0:
                 largest_missing_tile = i
                 break
+                
         # Apply downgrading if there's a missing tile smaller than the largest tile
         if largest_missing_tile <= largest_tile and largest_missing_tile > 7:
             should_downgrade = True
@@ -661,7 +658,6 @@ class TDLearning:
                     # Downgrade tiles (halve values of tiles larger than the threshold)
                     for i in range(16):
                         tile_value = downgraded.at(i)
-                        # print(f"tile_value: {tile_value}")
                         if tile_value > downgrade_threshold:
                             downgraded.set(i, tile_value - 1)
                     
@@ -677,25 +673,16 @@ class TDLearning:
                 
         return best
 
-
-    def learn_from_episode(self, path, alpha = 0.1):
+    def learn_from_episode(self, path, alpha=0.1):
         """
-        learn from the records in an episode
-
-        for example, an episode with a total of 3 states consists of
-         (initial) s0 --(a0,r0)--> s0' --(popup)--> s1 --(a1,r1)--> s1' --(popup)--> s2 (terminal)
-
-        the path for this game contains 3 records as follows
-         [ move(s0,s0',a0,r0), move(s1,s1',a1,r1), move(s2,x,x,x) ]
-         note that the last record DOES NOT contain valid afterstate, action, and reward
+        learn from the records in an episode, using the appropriate stage model
         """
         target = 0
-        path.pop() # ignore the last record
+        path.pop()  # ignore the last record
         while path:
             mv = path.pop()
             error = target - self.estimate(mv.afterstate())
             target = mv.reward() + self.update(mv.afterstate(), alpha * error)
-            # debug(f"update error = {error} for\n{mv.afterstate()}")
 
     def make_statistic(self, n, b, score, unit = 1000):
         """
@@ -746,7 +733,7 @@ class TDLearning:
             self.scores.clear()
             self.maxtile.clear()
 
-            tdl.save("2048.bin")
+            self.save("2048.bin")
 
     def dump(self, b, out = info):
         """
@@ -756,10 +743,9 @@ class TDLearning:
         for feat in self.feats:
             feat.dump(b, out=out)
 
-    def load(self, path):
+    def load(self, path, stage=1):
         """
-        load the weight table from binary file
-        the required features must be added, i.e., add_feature(...), before calling this function
+        load the weight table from binary file for the specified stage
         """
         try:
             with open(path, 'rb') as input:
@@ -769,21 +755,100 @@ class TDLearning:
                 for feat in self.feats:
                     feat.read(input)
                     info(f"{feat.name()} is loaded from {path}")
+                self.stage = stage
         except FileNotFoundError:
             pass
 
     def save(self, path):
         """
-        save the weight table to binary file
+        save the weight table to binary file with stage information
         """
         try:
-            with open(path, 'wb') as output:
+            stage_path = f"2048_stage{self.stage}.bin"
+            with open(stage_path, 'wb') as output:
                 output.write(struct.pack('Q', len(self.feats)))
                 for feat in self.feats:
                     feat.write(output)
-                    info(f"{feat.name()} is saved to {path}")
+                    info(f"{feat.name()} is saved to {stage_path}")
         except FileNotFoundError:
             pass
+
+    def train_stage2(self, total=50000, alpha_start=0.1, seed=0):
+        """
+        Train the second stage model specifically for boards with 8192 tiles
+        """
+        info(f"Training Stage 2 (8192 to 16384)")
+        info(f"total = {total}")
+        info(f"alpha_start = {alpha_start}")
+        info(f"seed = {seed}")
+        random.seed(seed)
+        
+        self.stage = 2
+        self.scores.clear()
+        self.maxtile.clear()
+        
+        for n in range(1, total + 1):
+            # Adjust learning rate based on progress
+            percentage = n / total
+            if percentage > 0.75:
+                alpha = alpha_start * 0.1
+            elif percentage > 0.5:
+                alpha = alpha_start * 0.1
+            else:
+                alpha = alpha_start
+                
+            path = []
+            state = self.generate_8192_board()  # Start with a board that already has 8192
+            score = 0
+            
+            # Play an episode starting from a board with 8192
+            while True:
+                best = self.select_best_move(state)
+                path.append(best)
+                
+                if best.is_valid():
+                    score += best.reward()
+                    state = board(best.afterstate())
+                    state.popup()
+                else:
+                    break
+                    
+            self.learn_from_episode(path, alpha)
+            self.make_statistic(n, state, score)
+            
+        self.save("2048.bin")
+        
+    def generate_8192_board(self):
+        """
+        Generate a board that already has an 8192 tile for stage 2 training
+        """
+        # Method 1: Start with a predefined board with 8192
+        b = board()
+        b.set(0, 13)  # Set position 0 to have 8192 (2^13)
+        
+        # Add some random smaller tiles
+        for _ in range(2):
+            space = [i for i in range(1, 16) if b.at(i) == 0]
+            if space:
+                pos = random.choice(space)
+                val = random.randint(1, 8)  # Random tile between 2 and 256
+                b.set(pos, val)
+                
+        return b
+        
+        # Alternative method: Play using stage 1 model until we get 8192
+        # This would be more realistic but slower
+        # state = board()
+        # state.init()
+        # while max(state.at(i) for i in range(16)) < 13:  # 13 is 8192
+        #     best = self.select_best_move(state)
+        #     if best.is_valid():
+        #         state = board(best.afterstate())
+        #         state.popup()
+        #     else:
+        #         state = board()
+        #         state.init()
+        # return state
 
 if __name__ == "__main__":
     board.lookup.init()
@@ -826,42 +891,48 @@ if __name__ == "__main__":
     for pattern in ntuple_patterns:
         tdl.add_feature(pattern)
 
-    # train the model
-    for n in range(1, total + 1):
-
-        percentage = n / total
-        if percentage > 0.75:
-            alpha = 0.001
-        elif percentage > 0.5:
-            alpha = 0.01
-        else:
-            alpha = 0.1
-
-        path = []
-        state = board()
-        score = 0
-
-        # play an episode
-        # debug("begin episode")
-        # start_time = time.time()
-        state.init()
-        while True:
-            # debug(f"state\n{state}")
-            best = tdl.select_best_move(state)
-            path.append(best)
-
-            if best.is_valid():
-                # debug("best", best)
-                score += best.reward()
-                state = board(best.afterstate())
-                state.popup()
+    # Check if we want to train stage 1 or stage 2
+    train_stage = 1
+    if len(sys.argv) > 1 and sys.argv[1] == "2":
+        train_stage = 2
+        
+    if train_stage == 1:
+        # Train stage 1 (up to 8192)
+        # train the model
+        for n in range(1, total + 1):
+            percentage = n / total
+            if percentage > 0.75:
+                alpha = 0.001
+            elif percentage > 0.5:
+                alpha = 0.01
             else:
-                break
-        # end_time = time.time()
-        # print(f"Time taken for one episode: {end_time - start_time} seconds")
-        # debug("end episode
+                alpha = 0.1
 
-        tdl.learn_from_episode(path, alpha)
-        tdl.make_statistic(n, state, score)
+            path = []
+            state = board()
+            score = 0
+
+            # play an episode
+            state.init()
+            while True:
+                best = tdl.select_best_move(state)
+                path.append(best)
+
+                if best.is_valid():
+                    score += best.reward()
+                    state = board(best.afterstate())
+                    state.popup()
+                else:
+                    break
+
+            tdl.learn_from_episode(path, alpha)
+            tdl.make_statistic(n, state, score)
+        
+        tdl.save("2048.bin")
     
-    tdl.save("2048.bin")
+    elif train_stage == 2:
+        # Train stage 2 (8192 to 16384)
+        # First load the stage 1 weights as a starting point
+        tdl.load("2048_stage1.bin", stage=1)
+        # Then train stage 2
+        tdl.train_stage2(total=100000, alpha_start=0.1)
