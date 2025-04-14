@@ -224,7 +224,7 @@ class TD_MCTS:
                 # For player move nodes, select best action using UCT
                 action, _ = self.select_child(node)
                 prev_reward = sim_env.score
-                _, reward, done, _ = sim_env.step(action, evaluate=True)
+                _, reward, _, _ = sim_env.step(action, evaluate=True)
                 move_reward = reward - prev_reward
                 total_reward += move_reward
 
@@ -330,7 +330,7 @@ for pattern in ntuple_patterns:
 tdl.load("2048_stage1.bin")
 
 env = Game2048Env()
-td_mcts = TD_MCTS(env, tdl, iterations=50, exploration_constant=1.41, rollout_depth=100, gamma=0.99)
+td_mcts = TD_MCTS(env, tdl, iterations=10, exploration_constant=1.41, rollout_depth=100, gamma=0.99)
 
 
 def state_to_board(state):
@@ -361,7 +361,7 @@ def get_action(state, score):
     # Select the best action (based on highest visit count)
     best_act, _ = td_mcts.best_action_distribution(root)
 
-    print("Current score: ", env.score)
+    # print("Current score: ", env.score)
 
 
     return best_act
